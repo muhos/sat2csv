@@ -14,10 +14,10 @@ Run the tool on the test folder (contains logs from parafrost and minisat solver
 where "test" is the directory name containing the log files, "-s" instructs the tool to extract a SAT solver information, and "test_results" is the name of the CSV file.
 The output file produced will look like this:
 
-CNF,	                           Simplify time (s),	Solve time (s),	 Sat.
-01-integer-programming-20-30-40	 4.242	            3201.933	       S
-9dlx_vliw_at_b_iq1	             0	                19.5243	         U
-Total time :	3225.6993		
+CNF,	                           Simplify time (s),	Solve time (s),	 Sat.<br/>
+01-integer-programming-20-30-40	 4.242	            3201.933	          S<br/>
+9dlx_vliw_at_b_iq1	             0	                  19.5243	          U<br/>
+Total time :	3225.6993<br/>		
 
 The "S" and "U" letters denotes "SATISFIABLE" and "UNSATISFIABLE" respectively.
 
