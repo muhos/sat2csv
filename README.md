@@ -22,4 +22,4 @@ CNF|Simplify time (s)|Solve time (s)|Sat.
 The "S" and "U" letters denotes "SATISFIABLE" and "UNSATISFIABLE" respectively.
 
 # Install
-Just run "sat2csv/compile.sh" on a Linux-based machine or compile the sources on Windows with any C/C++ compiler to produce the binary <sat2csv>. For more help on the available options use "-h". 
+Just run `sat2csv/compile.sh` on a Linux-based machine or compile the sources on Windows with any C/C++ compiler to produce the binary `sat2csv`. For more help on the available options use "-h". 
