@@ -9,13 +9,15 @@ A table in comma-separated CSV format.
 
 # Example
 Run the tool on the test folder (contains logs from parafrost and minisat solvers) using the commad: 
-   sat2csv test -s test_results
+   'sat2csv test -s test_results'
    
 where "test" is the directory name containing the log files, "-s" instructs the tool to extract a SAT solver information, and "test_results" is the name of the CSV file.
 The output file produced will look like this:
 
-CNF,______________________________Simplify time (s),__Solve time (s),____Sat.<br/>
-01-integer-programming-20-30-40,__4.242,______________3201.933,__________S<br/>
+CNF|Simplify time (s)|Solve time (s)|Sat.
+---|-----------------|--------------|----
+01-integer-programming-20-30-40|4.242|3201.933|S
+-------------------------------|-----|--------|-
 9dlx_vliw_at_b_iq1,_______________0,__________________19.5243,___________U<br/>
 Total time :,_____3225.6993<br/>		
 
