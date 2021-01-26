@@ -9,7 +9,7 @@ A table in comma-separated CSV format.
 
 # Example
 Run the tool on the test folder (contains logs from parafrost and minisat solvers) using the commad: 
-   >sat2csv test -s test_results
+   `sat2csv test -s test_results`
    
 where "test" is the directory name containing the log files, "-s" instructs the tool to extract a SAT solver information, and "test_results" is the name of the CSV file.
 The output file produced will look like this:
