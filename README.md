@@ -17,8 +17,7 @@ The output file produced will look like this:
 CNF|Simplify time (s)|Solve time (s)|Sat.
 ---|-----------------|--------------|----
 01-integer-programming-20-30-40|4.242|3201.933|S
-9dlx_vliw_at_b_iq1|0|19.5243|U
-Total time :|3225.6993		
+9dlx_vliw_at_b_iq1|0|19.5243|U	
 
 The "S" and "U" letters denotes "SATISFIABLE" and "UNSATISFIABLE" respectively.
 
