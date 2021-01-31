@@ -1,7 +1,5 @@
 language: cpp
 compiler:
-- gcc
-- clang
+- g++
 os:
 - linux
-- osx
