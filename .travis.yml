@@ -1,5 +1,4 @@
 language: cpp
-compiler:
-- g++
-os:
-- linux
+deploy:
+  provider: script
+  script: bash sat2csv/compile.sh
