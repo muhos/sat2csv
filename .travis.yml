@@ -1,4 +1,3 @@
-language: cpp
 deploy:
   provider: script
   script: bash sat2csv/compile.sh
