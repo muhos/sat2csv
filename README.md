@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://travis-ci.com/muhos/sat2csv.svg?token=YXUywHfBSpqMqyUKnyT4&branch=main)](https://travis-ci.com/muhos/sat2csv)
 # sat2csv
 A C++ tool for extracting data from SAT solvers or bounded model checkers output into csv format. It supports various solvers including ParaFROST or MiniSat and the bounded model checker CBMC. Information like the running time or the Satisfiability result will be parsed into a comma-separated file.
 
@@ -22,4 +24,4 @@ CNF|Simplify time (s)|Solve time (s)|Sat.
 The "S" and "U" letters denotes "SATISFIABLE" and "UNSATISFIABLE" respectively.
 
 # Install
-Just run "sat2csv/compile.sh" on a Linux-based machine or compile the sources on Windows with any C/C++ compiler to produce the binary <sat2csv>. For more help on the available options use "-h". 
+Run `compile.sh` inside `sat2csv` on a Linux-based machine or compile the sources on Windows with any C/C++ compiler to produce the binary `sat2csv`. For more help on the available options use "-h". 

@@ -1,0 +1,4 @@
+language: c++
+before_script: cd sat2csv
+script:
+- bash compile.sh
