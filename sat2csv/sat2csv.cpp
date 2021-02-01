@@ -294,6 +294,10 @@ void parse_bmc(const string& line, string& sat, string& verified, string& bmc_re
 		const char* n = line.c_str() + line.find(":") + 1;
 		bmc_time = atof(n);
 	}
+	else if (eq(line.c_str(), "simplification time")) { // simp time in minisat
+		const char* n = line.c_str() + line.find_last_of(":") + 1;
+		simp_time = atof(n);
+	}
 	else if (bmc_result.empty() && eq(line.c_str(), "VERIFICATION SUCCESSFUL")) { // cbmc
 		bmc_result = "SUCCESSFUL";
 	}
