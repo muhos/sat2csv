@@ -35,6 +35,7 @@ int main(int argc, char** argv)
 			ae(outline, "Simplify time (s)"), ae(outline, "Solve time (s)"), ae(outline, "Sat.");
 			outputFile << outline << endl;
 			double total_time = 0;
+			int nSAT = 0, nUNSAT = 0;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
 			for (auto& p : fs::directory_iterator(directory)) {
 				string fileStr(p.path().string()), fileName(p.path().filename().string());
@@ -46,14 +47,20 @@ int main(int argc, char** argv)
 					parse_time(line, sat, verified, solve_time, simp_time);
 				inputFile.close();
 				if (sat == "I") solve_time = -1;
-				else total_time += simp_time + solve_time;
+				else {
+					if (sat == "S") nSAT++;
+					else nUNSAT++;
+					total_time += simp_time + solve_time;
+				}
 				outline = fileName;
 				ae(outline, simp_time), ae(outline, solve_time), ae(outline, sat), ae(outline, verified);
 				tablerows.push_back(outline);
 				if (verbose) cout << " done" << endl;
 			}
 			write2file(outputFile, tablerows);
-			outline = "Total time :", ae(outline, total_time);
+			outline = "Total time:", ae(outline, total_time);
+			ae(outline, "SAT:"), ae(outline, nSAT);
+			ae(outline, "UNSAT:"), ae(outline, nUNSAT);
 			outputFile << outline << endl;
 			outputFile.close();
 		}
@@ -333,22 +340,30 @@ void parse_time(const string& line, string& sat, string& verified, double& solve
 		const char* n = line.c_str() + line.find(":") + 1;
 		solve_time = atof(n);
 	}
-	else if (line[0] == 'c' && eq(line.c_str(), "simplify")) { // cadical
+	else if (eq(line.c_str(), "total")) { // kissat
+		const char* n = line.c_str() + 1;
+		solve_time = atof(n);
+	}
+	else if (line[0] == 'c' && eq(line.c_str(), "simplify")) { // cadical or kissat
 		const char* n = line.c_str() + 1;
 		simp_time = atof(n);
 	}
-	else if (line[0] == 'c' && eq(line.c_str(), "CPU time") && line.length() > 2 && line[2] != '|') { // glucose
+	else if (eq(line.c_str(), "Simplification time")) { // minisat or glucose
+		const char* n = line.c_str() + line.find(":") + 1;
+		simp_time += atof(n);
+	}
+	else if (eq(line.c_str(), "CPU time")) { // minisat or glucose
 		const char* n = line.c_str() + line.find(":") + 1;
 		solve_time += atof(n);
 	}
-	else if (line[0] != 'c' && eq(line.c_str(), "CPU time")) { // minisat
-		const char* n = line.c_str() + line.find(":") + 1;
-		solve_time = atof(n);
-	}
-	else if (eq(line.c_str(), "UNSATISFIABLE")) sat = "U";
-	else if (eq(line.c_str(), "SATISFIABLE")) sat = "S";
-	else if (eq(line.c_str(), "VERIFIED")) verified = "VERIFIED";
-	else if (eq(line.c_str(), "NOT VERIFIED")) verified = "NOT VERIFIED";
+	else if (eq(line.c_str(), "UNSATISFIABLE")) 
+		sat = "U";
+	else if (eq(line.c_str(), "SATISFIABLE")) 
+		sat = "S";
+	else if (verified.empty() && eq(line.c_str(), "NOT VERIFIED")) 
+		verified = "NOT VERIFIED";
+	else if (verified.empty() && eq(line.c_str(), "VERIFIED"))
+		verified = "VERIFIED";
 }
 
 void parse_time(const string& line, SIG_TIME& sigtime)
