@@ -64,7 +64,37 @@ int main(int argc, char** argv)
 			outputFile << outline << endl;
 			outputFile.close();
 		}
+		if (input == "-stats") {
+			if (verbose) cout << "solver statistics mode is set" << endl;
+			createFile(outputFile, directory, outname, "stats_");
+			string outline = "CNF";
+			ae(outline, "C2V Ratio"), ae(outline, "Conflicts"), ae(outline, "Propagations");
+			ae(outline, "Single Decisions"), ae(outline, "Multiple Decisions"), ae(outline, "MDM Calls");
+			ae(outline, "Solve time (s)");
+			outputFile << outline << endl;
+			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
+			for (auto& p : fs::directory_iterator(directory)) {
+				string fileStr(p.path().string()), fileName(p.path().filename().string());
+				if (validFile(fileStr, fileName, inputFile)) continue;
+				if (verbose) cout << " parsing file " << fileName << "..";
+				double time = 0;
+				string line, c2v, conflicts, propagations, single, multiple, calls;
+				while (getline(inputFile, line)) {
+					parse_stats(line, c2v, conflicts, propagations, single, multiple, calls, time);
+				}
+				inputFile.close();
+				outline = fileName;
+				ae(outline, c2v), ae(outline, conflicts), ae(outline, propagations);
+				ae(outline, single), ae(outline, multiple), ae(outline, calls);
+				ae(outline, time);
+				tablerows.push_back(outline);
+				if (verbose) cout << " done" << endl;
+			}
+			write2file(outputFile, tablerows);
+			outputFile.close();
+		}
 		else if (input == "-bmc") {
+			if (verbose) cout << "bmc mode is set" << endl;
 			createFile(outputFile, directory, outname, "bmc_");
 			string outline = "CNF";
 			ae(outline, "Variables"), ae(outline, "Clauses"), ae(outline, "Simplify time (s)"), ae(outline, "Solve time (s)");
@@ -101,6 +131,7 @@ int main(int argc, char** argv)
 			outputFile.close();
 		}
 		else if (input == "-p") {
+			if (verbose) cout << "simplifer statistics mode is set" << endl;
 			createFile(outputFile, directory, outname, "reductions_");
 			string outline = "CNF";
 			ae(outline, "V (org)"), ae(outline, "C(org)"), ae(outline, "V (rem)"), ae(outline, "C (rem)"), ae(outline, "%V"), ae(outline, "%C");
@@ -157,6 +188,7 @@ int main(int argc, char** argv)
 			outputFile.close();
 		}
 		else if (input == "-cnf") {
+			if (verbose) cout << "cnf mode is set" << endl;
 			createFile(outputFile, directory, outname, "cnf_");
 			outputFile << "CNF" << endl;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
@@ -415,6 +447,60 @@ void parse_time(const string& line, SIG_TIME& sigtime)
 	else if (line.find("Device memory") != -1) {
 		string n = line.substr(line.find(":") + 1);
 		sigtime.mem = atof(n.c_str());
+	}
+}
+
+void parse_stats(const string& line, string& c2v, string& conflicts, string& propagations,
+	string& single, string& multiple, string& calls, double& time)
+{
+	if (eq(line.c_str(), "Solver time")) { // parafrost
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		const char* n = line.c_str() + offset;
+		time = atof(n);
+	}
+	else if (eq(line.c_str(), "C2V ratio")) {
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		c2v = line.substr(offset);
+		eatString(c2v, CNORMAL);
+	}
+	else if (eq(line.c_str(), "Conflicts")) { 
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		conflicts = line.substr(offset);
+		eatString(conflicts, CNORMAL);
+	}
+	else if (eq(line.c_str(), "Propagations")) {
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		propagations = line.substr(offset);
+		eatString(propagations, CNORMAL);
+	}
+	else if (eq(line.c_str(), "Search decisions")) { 
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		single = line.substr(offset);
+		eatString(single, CNORMAL);
+	}
+	else if (eq(line.c_str(), "All decisions")) { 
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		multiple = line.substr(offset);
+		eatString(multiple, CNORMAL);
+	}
+	else if (eq(line.c_str(), "MDM calls")) {
+		size_t offset = line.find(CREPORTVAL);
+		if (offset != -1) offset += strlen(CREPORTVAL);
+		else offset = line.find(":") + 1;
+		calls = line.substr(offset);
+		eatString(calls, CNORMAL);
 	}
 }
 

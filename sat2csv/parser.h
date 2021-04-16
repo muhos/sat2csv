@@ -8,6 +8,7 @@
 #define CREPORTVAL	"\x1B[38;5;106m"
 #define CPRE1		"\x1B[38;5;78m"
 #define CPRE2		"\x1B[38;5;168m"
+#define CERROR		"\x1B[31m"
 #define CPOST1		"\x1B[32m"
 #define CPOST2		"\x1B[38;5;125m"
 #define CNORMAL		"\x1B[0m"
@@ -41,6 +42,9 @@ void parseArguments(const int& argc, char** argv, const vector<string>& options,
 void parse_bmc(const string& line, string& sat, string& verified, string& bmc_result,
 	string& in_vars, string& in_cls, string& MDMCalls, string& MDs, string& MD_assumed,
 	double& bmc_time, double& solve_time, double& simp_time);
+
+void parse_stats(const string& line, string& c2v, string& conflicts, string& propagations,
+	string& single, string& multiple, string& calls, double& time);
 
 void parse_time(const string& line, SIG_TIME& sigtime);
 
