@@ -31,6 +31,8 @@ inline double percent(const long long& x, const long long& y) { return lratio(10
 
 inline void ae(string& line, const long long& value) { line += "," + to_string(value); }
 
+inline void ae(string& line, const int& value) { line += "," + to_string(value); }
+
 inline void ae(string& line, const double& value) { line += "," + to_string(value); }
 
 inline void ae(string& line, const string& value) { line += "," + value; }
