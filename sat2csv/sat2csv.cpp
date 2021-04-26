@@ -109,11 +109,12 @@ int main(int argc, char** argv)
 				if (verbose) cout << " parsing file " << fileName << "..";
 				string line, sat = "I", verified = "", bmc_result = "";
 				string in_vars = "0", in_cls = "0", mdmcalls = "0", mds = "0", md_assumed = "0";
-				double solve_time = 0.0, simp_time = 0.0, bmc_time = 0.0;
+				double solve_time = 0, simp_time = 0, bmc_time = 0;
 				while (getline(inputFile, line)) {
 					parse_bmc(line, sat, verified, bmc_result, in_vars, in_cls, mdmcalls, mds, md_assumed, bmc_time, solve_time, simp_time);
 				}
 				inputFile.close();
+				if (bmc_result.empty()) bmc_result = "NONE";
 				if (bmc_result != "ERROR") {
 					if (sat == "I") solve_time = 0;
 					total_time += bmc_time;
@@ -335,6 +336,10 @@ void parse_bmc(const string& line, string& sat, string& verified, string& bmc_re
 	}
 	else if (eq(line.c_str(), "simplification time")) { // simp time in minisat
 		const char* n = line.c_str() + line.find_last_of(":") + 1;
+		simp_time = atof(n);
+	}
+	else if (line[0] == 'c' && eq(line.c_str(), "simplify")) { // cadical or kissat
+		const char* n = line.c_str() + 1;
 		simp_time = atof(n);
 	}
 	else if (bmc_result.empty() && eq(line.c_str(), "VERIFICATION SUCCESSFUL")) { // cbmc
