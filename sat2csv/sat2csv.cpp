@@ -99,7 +99,7 @@ int main(int argc, char** argv)
 			string outline = "CNF";
 			ae(outline, "Variables"), ae(outline, "Clauses"), ae(outline, "Simplify time (s)"), ae(outline, "Solve time (s)");
 			ae(outline, "BMC time (s)"), ae(outline, "BMC result"), ae(outline, "Sat."), ae(outline, "Sat. Model");
-			ae(outline, "MDM Calls"), ae(outline, "MDs"), ae(outline, "MDs Assumed");
+			ae(outline, "MDM Calls"), ae(outline, "MDs"), ae(outline, "MDs Assumed"), ae(outline, "Timeout");
 			outputFile << outline << endl;
 			double total_time = 0;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
@@ -109,9 +109,9 @@ int main(int argc, char** argv)
 				if (verbose) cout << " parsing file " << fileName << "..";
 				string line, sat = "I", verified = "", bmc_result = "";
 				string in_vars = "0", in_cls = "0", mdmcalls = "0", mds = "0", md_assumed = "0";
-				double solve_time = 0, simp_time = 0, bmc_time = 0;
+				double solve_time = 0, simp_time = 0, bmc_time = 0, time_out = 0;
 				while (getline(inputFile, line)) {
-					parse_bmc(line, sat, verified, bmc_result, in_vars, in_cls, mdmcalls, mds, md_assumed, bmc_time, solve_time, simp_time);
+					parse_bmc(line, sat, verified, bmc_result, in_vars, in_cls, mdmcalls, mds, md_assumed, bmc_time, solve_time, simp_time, time_out);
 				}
 				inputFile.close();
 				if (bmc_result.empty()) bmc_result = "NONE";
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
 					outline = fileName;
 					ae(outline, in_vars), ae(outline, in_cls), ae(outline, simp_time), ae(outline, solve_time);
 					ae(outline, bmc_time), ae(outline, bmc_result), ae(outline, sat), ae(outline, verified);
-					ae(outline, mdmcalls), ae(outline, mds), ae(outline, md_assumed);
+					ae(outline, mdmcalls), ae(outline, mds), ae(outline, md_assumed), ae(outline, time_out);
 					tablerows.push_back(outline);
 				}
 				if (verbose) cout << " done" << endl;
@@ -283,7 +283,7 @@ void parseArguments(const int& argc, char** argv, const vector<string>& options,
 
 void parse_bmc(const string& line, string& sat, string& verified, string& bmc_result,
 	string& in_vars, string& in_cls, string& MDMCalls, string& MDs, string& MD_assumed,
-	double& bmc_time, double& time, double& simp_time)
+	double& bmc_time, double& time, double& simp_time, double& time_out)
 {
 	size_t vars_pos = line.find("variables");
 	size_t cls_pos = line.find("clauses");
@@ -333,6 +333,10 @@ void parse_bmc(const string& line, string& sat, string& verified, string& bmc_re
 	else if (eq(line.c_str(), "Runtime decision procedure")) { // solver time
 		const char* n = line.c_str() + line.find(":") + 1;
 		bmc_time = atof(n);
+	}
+	else if (eq(line.c_str(), "TIMEOUT")) { // timeout
+		const char* n = line.c_str() + line.find(":") + 1;
+		time_out = atof(n);
 	}
 	else if (eq(line.c_str(), "simplification time")) { // simp time in minisat
 		const char* n = line.c_str() + line.find_last_of(":") + 1;
@@ -458,7 +462,7 @@ void parse_time(const string& line, SIG_TIME& sigtime)
 void parse_stats(const string& line, string& c2v, string& conflicts, string& propagations,
 	string& single, string& multiple, string& calls, double& time)
 {
-	if (eq(line.c_str(), "Solver time")) { // parafrost
+	if (eq(line.c_str(), "Solver time") || eq(line.c_str(), "CPU time")) {
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
@@ -472,40 +476,50 @@ void parse_stats(const string& line, string& c2v, string& conflicts, string& pro
 		c2v = line.substr(offset);
 		eatString(c2v, CNORMAL);
 	}
-	else if (eq(line.c_str(), "Conflicts")) { 
+	else if (eq(line.c_str(), "Conflicts") || eq(line.c_str(), "c conflicts")) { 
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
-		conflicts = line.substr(offset);
-		eatString(conflicts, CNORMAL);
+		string val = line.substr(offset);
+		eatString(val, CNORMAL);
+		eatSpaces(val);
+		conflicts = getDigitsUntil(val, ' ');
 	}
-	else if (eq(line.c_str(), "Propagations")) {
+	else if (eq(line.c_str(), "Propagations") || eq(line.c_str(), "c propagations")) {
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
-		propagations = line.substr(offset);
-		eatString(propagations, CNORMAL);
+		string val = line.substr(offset);
+		eatString(val, CNORMAL);
+		eatSpaces(val);
+		propagations = getDigitsUntil(val, ' ');
 	}
-	else if (eq(line.c_str(), "Search decisions")) { 
+	else if (eq(line.c_str(), "Search decisions") || eq(line.c_str(), "c decisions")) { 
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
-		single = line.substr(offset);
-		eatString(single, CNORMAL);
+		string val = line.substr(offset);
+		eatString(val, CNORMAL);
+		eatSpaces(val);
+		single = getDigitsUntil(val, ' ');
 	}
-	else if (eq(line.c_str(), "All decisions")) { 
+	else if (eq(line.c_str(), "All decisions") || eq(line.c_str(), "parallel decisions")) { 
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
-		multiple = line.substr(offset);
-		eatString(multiple, CNORMAL);
+		string val = line.substr(offset);
+		eatString(val, CNORMAL);
+		eatSpaces(val);
+		multiple = getDigitsUntil(val, ' ');
 	}
-	else if (eq(line.c_str(), "MDM calls")) {
+	else if (eq(line.c_str(), "MDM calls") || eq(line.c_str(), "PDM calls")) {
 		size_t offset = line.find(CREPORTVAL);
 		if (offset != -1) offset += strlen(CREPORTVAL);
 		else offset = line.find(":") + 1;
-		calls = line.substr(offset);
-		eatString(calls, CNORMAL);
+		string val = line.substr(offset);
+		eatString(val, CNORMAL);
+		eatSpaces(val);
+		calls = getDigitsUntil(val, ' ');
 	}
 }
 

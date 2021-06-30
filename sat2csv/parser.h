@@ -41,7 +41,7 @@ void parseArguments(const int& argc, char** argv, const vector<string>& options,
 
 void parse_bmc(const string& line, string& sat, string& verified, string& bmc_result,
 	string& in_vars, string& in_cls, string& MDMCalls, string& MDs, string& MD_assumed,
-	double& bmc_time, double& solve_time, double& simp_time);
+	double& bmc_time, double& solve_time, double& simp_time, double& time_out);
 
 void parse_stats(const string& line, string& c2v, string& conflicts, string& propagations,
 	string& single, string& multiple, string& calls, double& time);

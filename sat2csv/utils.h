@@ -53,5 +53,21 @@ inline bool eq(const char* in, const char* ref)
 	return false;
 }
 
+inline bool eql(const char* in, const char* ref)
+{
+	size_t count = 0;
+	const size_t reflen = strlen(ref);
+	while (*in) {
+		if (tolower(ref[count]) != *in)
+			count = 0;
+		else
+			count++;
+		in++;
+		if (count == reflen)
+			return true;
+	}
+	return false;
+}
+
 
 #endif
