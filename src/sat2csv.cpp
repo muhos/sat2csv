@@ -64,31 +64,22 @@ int main(int argc, char** argv)
 			outputFile << outline << endl;
 			outputFile.close();
 		}
-		if (input == "-stats") {
-			if (verbose) cout << "solver statistics mode is set" << endl;
-			createFile(outputFile, directory, outname, "stats_");
-			string outline = "CNF";
-			ae(outline, "C2V Ratio"), ae(outline, "Conflicts"), ae(outline, "Propagations");
-			ae(outline, "Single Decisions"), ae(outline, "Multiple Decisions"), ae(outline, "MDM Calls");
-			ae(outline, "Solve time (s)");
-			outputFile << outline << endl;
+		else if (input == "-cnf") {
+			if (verbose) cout << "cnf mode is set" << endl;
+			createFile(outputFile, directory, outname, "cnf_");
+			outputFile << "CNF" << endl;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
-			for (auto& p : fs::directory_iterator(directory)) {
-				string fileStr(p.path().string()), fileName(p.path().filename().string());
-				if (validFile(fileStr, fileName, inputFile)) continue;
-				if (verbose) cout << " parsing file " << fileName << "..";
-				double time = 0;
-				string line, c2v, conflicts, propagations, single, multiple, calls;
-				while (getline(inputFile, line)) {
-					parse_stats(line, c2v, conflicts, propagations, single, multiple, calls, time);
+			for (auto& path : fs::directory_iterator(directory)) {
+				string file = path.path().string();
+				if (file.find(".cnf") != -1) {
+					string fileName = path.path().filename().string();
+					if (verbose) cout << " found file " << fileName << endl;
+					size_t pos;
+					if ((pos = fileName.find(CNFEXT)) != -1) fileName.erase(pos, strlen(CNFEXT));
+					if ((pos = fileName.find(BZ2EXT)) != -1) fileName.erase(pos, strlen(BZ2EXT));
+					if ((pos = fileName.find(XZEXT)) != -1) fileName.erase(pos, strlen(XZEXT));
+					tablerows.push_back(fileName);
 				}
-				inputFile.close();
-				outline = fileName;
-				ae(outline, c2v), ae(outline, conflicts), ae(outline, propagations);
-				ae(outline, single), ae(outline, multiple), ae(outline, calls);
-				ae(outline, time);
-				tablerows.push_back(outline);
-				if (verbose) cout << " done" << endl;
 			}
 			write2file(outputFile, tablerows);
 			outputFile.close();
@@ -131,79 +122,120 @@ int main(int argc, char** argv)
 			outputFile << outline << endl;
 			outputFile.close();
 		}
-		else if (input == "-p") {
+		else if (input == "-red") {
 			if (verbose) cout << "simplifer statistics mode is set" << endl;
 			createFile(outputFile, directory, outname, "reductions_");
 			string outline = "CNF";
 			ae(outline, "V (org)"), ae(outline, "C(org)"), ae(outline, "V (rem)"), ae(outline, "C (rem)"), ae(outline, "%V"), ae(outline, "%C");
-			ae(outline, "Tried reduns"), ae(outline, "Original reduns"), ae(outline, "Learnt Reduns"), ae(outline, "%original"), ae(outline, "%learnt");
+			ae(outline, "Tried reduns"), ae(outline, "Original reduns"), ae(outline, "Learnt Reduns"), ae(outline, "All Reduns");
+			ae(outline, "%original"), ae(outline, "%learnt");
 			outputFile << outline << endl;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
 			for (auto& p : fs::directory_iterator(directory)) {
 				string fileStr(p.path().string()), fileName(p.path().filename().string());
 				if (validFile(fileStr, fileName, inputFile)) continue;
 				if (verbose) cout << " parsing file " << fileName << "..";
-				string line, in_vars, in_cls, org_vars, org_cls, lrn_cls, vars_after, cls_after;
-				string triedReduns = "0", orgReduns = "0", lrnReduns = "0";
-				double vars_perc = 0, cls_perc = 0, orgReduns_perc = 0, lrnReduns_perc = 0;
-				long long vars_rem = 0, cls_rem = 0, lrn_cls_rem = 0, lrn_cls_tot_before = 0, lrn_cls_tot_after = 0;
-				while (getline(inputFile, line)) {
-					eatString(line, CPRE1), eatString(line, CPRE2), eatString(line, CNORMAL);
-					if (line.size() > 3 && line[2] == '|' && line[3] == '-' && line[4] != '-') {
-						string preLine = line, postLine;
-						while (getline(inputFile, line)) {
-							eatString(line, CPOST1), eatString(line, CPOST2), eatString(line, CNORMAL);
-							if (line.size() > 3 && line[2] == '|' && (line[3] == 's' || line[3] == 'v')) {
-								postLine = line;
-								parse_preLine(preLine, org_vars, org_cls, lrn_cls);
-								long long lrn_cls_pre = atoll(lrn_cls.c_str());
-								parse_postLine(postLine, vars_after, cls_after, lrn_cls);
-								long long lrn_cls_post = atoll(lrn_cls.c_str());
-								if (lrn_cls_pre > lrn_cls_post) {
-									lrn_cls_tot_before += lrn_cls_pre;
-									lrn_cls_tot_after += lrn_cls_post;
-								}
-								vars_rem += atoll(org_vars.c_str()) - atoll(vars_after.c_str());
-								cls_rem += atoll(org_cls.c_str()) - atoll(cls_after.c_str());
-								break;
-							}
-						}
-					}
-					else parse_reds(line, in_vars, in_cls, triedReduns, orgReduns, lrnReduns);
-				}
-				long long in_vars_val = atoll(in_vars.c_str()), in_cls_val = atoll(in_cls.c_str());
-				vars_perc = ceil(percent(vars_rem, in_vars_val));
-				lrn_cls_rem = lrn_cls_tot_after - lrn_cls_tot_before;
-				if (lrn_cls_rem < 0) lrn_cls_rem = 0;
-				cls_perc = ceil(percent(cls_rem + lrn_cls_rem, in_cls_val + lrn_cls_tot_before));
+				string line, in_vars, in_cls, rem_vars, rem_cls, forced_units;
+				string triedReduns = "0", orgReduns = "0", lrnReduns = "0", remReduns = "0";
+				double vars_perc = 0, cls_perc = 0, orgReduns_perc = 0, lrnReduns_perc = 0, remReduns_perc = 0;
+				while (getline(inputFile, line))
+					parse_reds(line, in_vars, in_cls, rem_vars, rem_cls, forced_units, triedReduns, orgReduns, lrnReduns, remReduns);
+				long long in_vars_val = atoll(in_vars.c_str());
+				long long in_cls_val = atoll(in_cls.c_str());
+				long long rem_vars_val = atoll(rem_vars.c_str()) + atoll(forced_units.c_str());
+				long long rem_cls_val = atoll(rem_cls.c_str());
+				vars_perc = ceil(percent(rem_vars_val, in_vars_val));
+				cls_perc = ceil(percent(rem_cls_val, in_cls_val));
 				orgReduns_perc = ceil(percent(atoll(orgReduns.c_str()), atoll(triedReduns.c_str())));
 				lrnReduns_perc = ceil(percent(atoll(lrnReduns.c_str()), atoll(triedReduns.c_str())));
 				inputFile.close();
 				outline = fileName;
-				ae(outline, in_vars), ae(outline, in_cls), ae(outline, vars_rem), ae(outline, cls_rem), ae(outline, vars_perc), ae(outline, cls_perc);
-				ae(outline, triedReduns), ae(outline, orgReduns), ae(outline, lrnReduns), ae(outline, orgReduns_perc), ae(outline, lrnReduns_perc);
+				ae(outline, in_vars), ae(outline, in_cls);
+				ae(outline, rem_vars_val), ae(outline, rem_cls_val);
+				ae(outline, vars_perc), ae(outline, cls_perc);
+				ae(outline, triedReduns), ae(outline, orgReduns), ae(outline, lrnReduns);
+				ae(outline, remReduns), ae(outline, orgReduns_perc), ae(outline, lrnReduns_perc);
 				tablerows.push_back(outline);
 				if (verbose) cout << " done" << endl;
 			}
 			write2file(outputFile, tablerows);
 			outputFile.close();
 		}
-		else if (input == "-cnf") {
-			if (verbose) cout << "cnf mode is set" << endl;
-			createFile(outputFile, directory, outname, "cnf_");
-			outputFile << "CNF" << endl;
+		else if (input == "-pro") {
+			if (verbose) cout << "simplifer profiler mode is set" << endl;
+			createFile(outputFile, directory, outname, "profile_");
+			string outline = "CNF,";
+			SIG_TIME sigTime;
+			sigTime.toCSVHeader(outline);
+			outputFile << outline << endl;
 			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
-			for (auto& path : fs::directory_iterator(directory)) {
-				string file = path.path().string();
-				if (file.find(".cnf") != -1) {
-					string fileName = path.path().filename().string();
-					if (verbose) cout << " found file " << fileName << endl;
-					size_t pos;
-					if ((pos = fileName.find(CNFEXT)) != -1) fileName.erase(pos, strlen(CNFEXT));
-					if ((pos = fileName.find(BZ2EXT)) != -1) fileName.erase(pos, strlen(BZ2EXT));
-					if ((pos = fileName.find(XZEXT)) != -1) fileName.erase(pos, strlen(XZEXT));
-					tablerows.push_back(fileName);
+			for (auto& p : fs::directory_iterator(directory)) {
+				string fileStr(p.path().string()), fileName(p.path().filename().string());
+				if (validFile(fileStr, fileName, inputFile)) continue;
+				if (verbose) cout << " parsing file " << fileName << "..";
+				string line;
+				while (getline(inputFile, line))
+					parse_time(line, sigTime);
+				inputFile.close();
+				outline = fileName + ",";
+				sigTime.toCSVLine(outline);
+				tablerows.push_back(outline);
+				if (verbose) cout << " done" << endl;
+			}
+			write2file(outputFile, tablerows);
+			outputFile.close();
+		}
+		else if (input == "-drat") {
+			if (verbose) cout << "verify mode is set" << endl;
+			createFile(outputFile, directory, outname, "verify_");
+			string outline = "CNF";
+			ae(outline, "verify time (s)"), ae(outline, "proof bytes"), ae(outline, "outcome");
+			outputFile << outline << endl;
+			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
+			for (auto& p : fs::directory_iterator(directory)) {
+				string fileStr(p.path().string()), fileName(p.path().filename().string());
+				if (validFile(fileStr, fileName, inputFile)) continue;
+				if (verbose) cout << " parsing file " << fileName << "..";
+				string line, verified = "";
+				double verify_time = 0.0;
+				long long bytes = 0;
+				while (getline(inputFile, line))
+					parse_time(line, verified, verify_time, bytes);
+				if (verified.empty()) verified = "UNKNOWN";
+				inputFile.close();
+				outline = fileName;
+				ae(outline, verify_time), ae(outline, bytes), ae(outline, verified);
+				tablerows.push_back(outline);
+				if (verbose) cout << " done" << endl;
+			}
+			write2file(outputFile, tablerows);
+			outputFile.close();
+		}
+		else if (input == "-stats") {
+			if (verbose) cout << "solver statistics mode is set" << endl;
+			createFile(outputFile, directory, outname, "stats_");
+			string outline = "CNF";
+			ae(outline, "C2V Ratio"), ae(outline, "Conflicts"), ae(outline, "Propagations");
+			ae(outline, "Single Decisions"), ae(outline, "Multiple Decisions"), ae(outline, "MDM Calls");
+			ae(outline, "Solve time (s)");
+			outputFile << outline << endl;
+			if (verbose) cout << "reading directory \"" << directory << "\" contents:" << endl;
+			for (auto& p : fs::directory_iterator(directory)) {
+				string fileStr(p.path().string()), fileName(p.path().filename().string());
+				if (validFile(fileStr, fileName, inputFile)) continue;
+				if (verbose) cout << " parsing file " << fileName << "..";
+				double time = 0;
+				string line, c2v, conflicts, propagations, single, multiple, calls;
+				while (getline(inputFile, line)) {
+					parse_stats(line, c2v, conflicts, propagations, single, multiple, calls, time);
 				}
+				inputFile.close();
+				outline = fileName;
+				ae(outline, c2v), ae(outline, conflicts), ae(outline, propagations);
+				ae(outline, single), ae(outline, multiple), ae(outline, calls);
+				ae(outline, time);
+				tablerows.push_back(outline);
+				if (verbose) cout << " done" << endl;
 			}
 			write2file(outputFile, tablerows);
 			outputFile.close();
@@ -219,9 +251,9 @@ void SIG_TIME::toCSVHeader(string& csv_header) {
 	csv_header.append("sig (ms),");
 	csv_header.append("gc (ms),");
 	csv_header.append("ve (ms),");
-	csv_header.append("hse (ms),");
+	csv_header.append("sub (ms),");
 	csv_header.append("bce (ms),");
-	csv_header.append("hre (ms),");
+	csv_header.append("ere (ms),");
 	csv_header.append("io (ms),");
 	csv_header.append("mem (MB)");
 }
@@ -234,9 +266,9 @@ void SIG_TIME::toCSVLine(string& csv_line) {
 		to_string(sig) + "," +
 		to_string(gc) + "," +
 		to_string(ve) + "," +
-		to_string(hse) + "," +
+		to_string(sub) + "," +
 		to_string(bce) + "," +
-		to_string(hre) + "," +
+		to_string(ere) + "," +
 		to_string(io) + "," +
 		to_string(mem);
 }
@@ -377,15 +409,17 @@ void parse_time(const string& line, string& sat, string& verified, double& solve
 		const char* n = line.c_str() + offset;
 		simp_time = atof(n);
 	}
-	else if (eq(line.c_str(), "c total process time")) { // cadical
-		const char* n = line.c_str() + line.find(":") + 1;
-		solve_time = atof(n);
-	}
-	else if (eq(line.c_str(), "total")) { // kissat
+	else if (eq(line.c_str(), "total") &&
+		!eq(line.c_str(), "process time") &&
+		!eq(line.c_str(), "real time")) { // kissat
 		const char* n = line.c_str() + 1;
 		solve_time = atof(n);
 	}
-	else if (line[0] == 'c' && eq(line.c_str(), "simplify")) { // cadical or kissat
+	else if (!eq(line.c_str(),  "percentage") && eq(line.c_str(), "total process time")) { // cadical
+		const char* n = line.c_str() + line.find(":") + 1;
+		solve_time = atof(n);
+	}
+	else if (eq(line.c_str(), "simplify")) { // cadical or kissat
 		const char* n = line.c_str() + 1;
 		simp_time = atof(n);
 	}
@@ -407,54 +441,64 @@ void parse_time(const string& line, string& sat, string& verified, double& solve
 		verified = "VERIFIED";
 }
 
+void parse_time(const string& line, string& verified, double& verify_time, long long& bytes)
+{
+	if (eq(line.c_str(), "finished parsing")) {
+		size_t offset = line.find("read") + 4;
+		const char* n = line.c_str() + offset;
+		bytes = atoll(n);
+	}
+	else if (eq(line.c_str(), "verification time")) {
+		size_t offset = line.find(":") + 1;
+		const char* n = line.c_str() + offset;
+		verify_time = atof(n);
+	}
+	else if (eq(line.c_str(), "NOT VERIFIED")) 
+		verified = "NOT VERIFIED";
+	else if (eq(line.c_str(), "VERIFIED"))
+		verified = "VERIFIED";
+}
+
 void parse_time(const string& line, SIG_TIME& sigtime)
 {
+	size_t offset = line.find(CREPORTVAL);
+	if (offset != -1) offset += strlen(CREPORTVAL);
+	else offset = line.find(":") + 1;
+	string n = line.substr(offset);
 	if (line.find("Var ordering") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.vo = atof(n.c_str());
 	}
-	else if (line.find("signatures") != -1) {
-		string n = line.substr(line.find(":") + 1);
+	else if (line.find("prepare") != -1) {
 		sigtime.sig = atof(n.c_str());
 	}
 	else if (line.find("compact") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.gc = atof(n.c_str());
 	}
 	else if (line.find("transfer") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.io = atof(n.c_str());
 	}
 	else if (line.find("creation") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.cot = atof(n.c_str());
 	}
 	else if (line.find("sorting") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.sot = atof(n.c_str());
 	}
 	else if (line.find("reduction") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.rot = atof(n.c_str());
 	}
 	else if (line.find("BVE") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.ve = atof(n.c_str());
 	}
-	else if (line.find("HSE") != -1) {
-		string n = line.substr(line.find(":") + 1);
-		sigtime.hse = atof(n.c_str());
+	else if (line.find("SUB") != -1 || line.find("HSE") != -1) {
+		sigtime.sub = atof(n.c_str());
 	}
 	else if (line.find("BCE") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.bce = atof(n.c_str());
 	}
-	else if (line.find("HRE") != -1) {
-		string n = line.substr(line.find(":") + 1);
-		sigtime.hre = atof(n.c_str());
+	else if (line.find("ERE") != -1) {
+		sigtime.ere = atof(n.c_str());
 	}
 	else if (line.find("Device memory") != -1) {
-		string n = line.substr(line.find(":") + 1);
 		sigtime.mem = atof(n.c_str());
 	}
 }
@@ -462,60 +506,42 @@ void parse_time(const string& line, SIG_TIME& sigtime)
 void parse_stats(const string& line, string& c2v, string& conflicts, string& propagations,
 	string& single, string& multiple, string& calls, double& time)
 {
+	size_t offset = line.find(CREPORTVAL);
+	if (offset != -1) offset += strlen(CREPORTVAL);
+	else offset = line.find(":") + 1;
 	if (eq(line.c_str(), "Solver time") || eq(line.c_str(), "CPU time")) {
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		const char* n = line.c_str() + offset;
 		time = atof(n);
 	}
 	else if (eq(line.c_str(), "C2V ratio")) {
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		c2v = line.substr(offset);
 		eatString(c2v, CNORMAL);
 	}
 	else if (eq(line.c_str(), "Conflicts") || eq(line.c_str(), "c conflicts")) { 
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		string val = line.substr(offset);
 		eatString(val, CNORMAL);
 		eatSpaces(val);
 		conflicts = getDigitsUntil(val, ' ');
 	}
 	else if (eq(line.c_str(), "Propagations") || eq(line.c_str(), "c propagations")) {
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		string val = line.substr(offset);
 		eatString(val, CNORMAL);
 		eatSpaces(val);
 		propagations = getDigitsUntil(val, ' ');
 	}
 	else if (eq(line.c_str(), "Search decisions") || eq(line.c_str(), "c decisions")) { 
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		string val = line.substr(offset);
 		eatString(val, CNORMAL);
 		eatSpaces(val);
 		single = getDigitsUntil(val, ' ');
 	}
 	else if (eq(line.c_str(), "All decisions") || eq(line.c_str(), "parallel decisions")) { 
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		string val = line.substr(offset);
 		eatString(val, CNORMAL);
 		eatSpaces(val);
 		multiple = getDigitsUntil(val, ' ');
 	}
 	else if (eq(line.c_str(), "MDM calls") || eq(line.c_str(), "PDM calls")) {
-		size_t offset = line.find(CREPORTVAL);
-		if (offset != -1) offset += strlen(CREPORTVAL);
-		else offset = line.find(":") + 1;
 		string val = line.substr(offset);
 		eatString(val, CNORMAL);
 		eatSpaces(val);
@@ -523,17 +549,38 @@ void parse_stats(const string& line, string& c2v, string& conflicts, string& pro
 	}
 }
 
-void parse_reds(string& line, string& in_vars, string& in_cls, string& triedReduns, string& orgReduns, string& lrnReduns)
+void parse_reds(string& line, string& in_vars, string& in_cls,
+	string& rem_vars, string& rem_cls, string& forced_units,
+	string& triedReduns, string& orgReduns, string& lrnReduns, string& remReduns)
 {
-	int i = 0;
 	while (eatString(line, CREPORTVAL));
 	while (eatString(line, CNORMAL));
-	if (eq(line.c_str(), "c | Read")) {
+	if (eq(line.c_str(), "c  Read")) {
 		string tmp(line);
 		eatNondigits(tmp);
 		in_vars = getDigitsUntil(tmp, ' ');
 		eatNondigits(tmp);
 		in_cls = getDigitsUntil(tmp, ' ');
+	}
+	else if (forced_units.empty() && eq(line.c_str(), "Forced units")) {
+		string n = line.substr(line.find(":") + 1);
+		eatSpaces(n);
+		forced_units = getDigitsUntil(n, ' ');
+	}
+	else if (rem_vars.empty() && eq(line.c_str(), "Removed variables")) {
+		string n = line.substr(line.find(":") + 1);
+		eatSpaces(n);
+		rem_vars = getDigitsUntil(n, ' ');
+	}
+	else if (rem_cls.empty() && eq(line.c_str(), "Removed clauses")) {
+		string n = line.substr(line.find(":") + 1);
+		eatSpaces(n);
+		rem_cls = getDigitsUntil(n, ' ');
+	}
+	else if (eq(line.c_str(), "Removed redundancies")) {
+		string n = line.substr(line.find(":") + 1);
+		eatSpaces(n);
+		remReduns = getDigitsUntil(n, ' ');
 	}
 	else if (eq(line.c_str(), "Tried redundancies")) {
 		triedReduns.clear();
@@ -566,44 +613,6 @@ void parse_reds(string& line, string& in_vars, string& in_cls, string& triedRedu
 			in_cls = getDigitsUntil(tmp, ' ');
 		}
 	}
-}
-
-void parse_preLine(const string& input, string& orgVars, string& orgCls, string& lrnCls)
-{
-	string line(input.substr(4));
-	long long n = 0;
-	orgVars.clear(), orgCls.clear(), lrnCls.clear();
-	eatSpaces(line);
-	orgVars = getDigits(line);
-	eatSpaces(line);
-	orgCls = getDigits(line);
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip literals
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip conflicts
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip restarts
-	eatSpaces(line);
-	lrnCls = getDigitsUntil(line, ' ');
-}
-
-void parse_postLine(const string& input, string& afterVars, string& afterCls, string& lrnCls)
-{
-	string line(input.substr(4));
-	long long n = 0;
-	afterVars.clear(), afterCls.clear(), lrnCls.clear();
-	eatSpaces(line);
-	afterVars = getDigitsUntil(line, ' ');
-	eatSpaces(line);
-	afterCls = getDigitsUntil(line, ' ');
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip literals
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip conflicts
-	eatSpaces(line);
-	eatDigitsUntil(line, ' '); // skip restarts
-	eatSpaces(line);
-	lrnCls = getDigitsUntil(line, ' ');
 }
 
 bool eatString(string& line, const char* str)

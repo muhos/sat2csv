@@ -14,7 +14,7 @@
 #define CNORMAL		"\x1B[0m"
 
 struct SIG_TIME {
-	double vo, ve, hse, bce, hre, cot, rot, sot, sig, gc, io, mem;
+	double vo, ve, sub, bce, ere, cot, rot, sot, sig, gc, io, mem;
 	SIG_TIME() { memset(this, 0, sizeof(*this)); }
 	void reset() { memset(this, 0, sizeof(*this)); }
 	void toCSVHeader(string& csv_header);
@@ -48,12 +48,12 @@ void parse_stats(const string& line, string& c2v, string& conflicts, string& pro
 
 void parse_time(const string& line, SIG_TIME& sigtime);
 
+void parse_time(const string& line, string& verified, double& verify_time, long long& bytes);
+
 void parse_time(const string& line, string& sat, string& verified, double& solve_time, double& simp_time);
 
-void parse_preLine(const string& line, string& orgVars, string& orgCls, string& lrnCls);
-
-void parse_postLine(const string& line, string& afterVars, string& afterCls, string& lrnCls);
-
-void parse_reds(string& line, string& in_vars, string& in_cls, string& triedReduns, string& orgReduns, string& lrnReduns);
+void parse_reds(string& line, string& in_vars, string& in_cls,
+	string& rem_vars, string& rem_cls, string& forced_units,
+	string& triedReduns, string& orgReduns, string& lrnReduns, string& remReduns);
 
 #endif

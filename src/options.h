@@ -11,12 +11,14 @@
 
 /* configurable options */
 #define OPTSOLVER "-s     <output>    produce a <output>.csv table for SAT solver logs"
-#define OPTREDS   "-p     <output>    produce a <output>.csv table for SAT solver/simplifier reductions"
+#define OPTREDS   "-red   <output>    produce a <output>.csv table for SAT solver/simplifier reductions"
+#define OPTPRO    "-pro   <output>    produce a <output>.csv table for SAT simplifier profiling"
 #define OPTCNF    "-cnf   <output>    produce a <output>.csv table for CNF formulas"
 #define OPTBMC    "-bmc   <output>    produce a <output>.csv table for model checker logs"
+#define OPTDRAT   "-drat   <output>    produce a <output>.csv table for DRAT logs"
 #define OPTSTATS  "-stats <output>    produce a <output>.csv table for SAT solver search statistics"
 #define SOLVERS  "minisat, glucose, cadical, sigma, parafrost"
-#define CHECKERS "CBMC"
+#define CHECKERS "CBMC, drat-trim"
 
 inline void readOptionsTo(vector<string>& options)
 {
@@ -25,8 +27,10 @@ inline void readOptionsTo(vector<string>& options)
 	options.push_back(OPTQUIET);
 	options.push_back(OPTSOLVER);
 	options.push_back(OPTREDS);
+	options.push_back(OPTPRO);
 	options.push_back(OPTCNF);
 	options.push_back(OPTBMC);
+	options.push_back(OPTDRAT);
 	options.push_back(OPTSTATS);
 }
 

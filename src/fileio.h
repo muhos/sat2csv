@@ -7,6 +7,7 @@ namespace fs = std::experimental::filesystem;
 
 #define PREFIX1 "result_"
 #define PREFIX2 "simp_"
+#define PREFIX3 "proof_"
 #define TABLEEXT ".csv"
 #define RESULTEXT ".txt"
 #define CNFEXT ".cnf"
@@ -19,6 +20,7 @@ inline bool validFile(const string& fileStr, string& fileName, ifstream& file)
 	size_t pos = -1;
 	if ((pos = fileName.find(PREFIX1)) != -1) fileName.erase(pos, strlen(PREFIX1));
 	else if ((pos = fileName.find(PREFIX2)) != -1) fileName.erase(pos, strlen(PREFIX2));
+	else if ((pos = fileName.find(PREFIX3)) != -1) fileName.erase(pos, strlen(PREFIX3));
 	else return true;
 	fileName.erase(fileName.find(RESULTEXT), strlen(RESULTEXT));
 	file.open(fileStr, ifstream::in);
